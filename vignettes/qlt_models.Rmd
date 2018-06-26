@@ -1,0 +1,41 @@
+---
+title: "Qualité des modèles"
+author: "Alexandre CONANEC"
+date: "3 mai 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE, warning = FALSE}
+#load library
+library(mfe)
+load('../data/models_final.RData')
+
+#import data
+data <- as.matrix(read.csv('../data/indicateurs.csv', header = T, sep = ';', dec = ','))
+```
+
+
+```{r warning = FALSE}
+res <- as.data.frame(matrix(NA, ncol = 7, nrow = ncol(data)))
+rownames(res) <- colnames(data)
+colnames(res) <- c('R2', 'R2_cor', 'RMSE', 'RMSE_cor', 'R2Adj', 'R2Adj_cor', 'model')
+
+for (i in 1:ncol(data)){
+  qlt <- qlt_model(model = models[[i]])
+  plot(qlt)
+  for (j in 1:length(qlt$qlt)){
+    res[i, j] <- qlt$qlt[[j]]
+  }
+  
+  res[i, 7] <- class(models[[i]])
+}
+
+
+res$RMSE <- res$RMSE * (1/diag(var(data)))
+res$RMSE_cor <- res$RMSE_cor * (1/diag(var(data)))
+write.csv2(res, file='../plot/qtl_models_final.csv', sep="\t")
+```

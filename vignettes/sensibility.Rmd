@@ -1,0 +1,42 @@
+---
+title: "Sensitivity"
+author: "Alexandre CONANEC"
+date: "29 mai 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r warning = FALSE}
+library(mfe)
+load('../data/models_final.RData')
+data <- as.matrix(read.csv('../data/indicateurs.csv', header=T, sep=';',dec=','))
+
+p <- ncol(data)
+sensibilite <- as.data.frame(matrix(NA, ncol = p, nrow = p))
+rownames(sensibilite) <- colnames(data)
+colnames(sensibilite) <- colnames(data)
+set.seed(123)
+for (m in 1:p){
+  col <- which(colnames(data) %in% models[[m]]$Xlabels)
+  j <- 1
+  ss <- sobol_sensitivity(model = models[[m]], ordre = 1, n = 1000, B = 100, seed = 123)
+
+  for (i in col){
+    sensibilite[m, i] <- round(ss$original[ j], 3)
+    j <- j + 1
+  }  
+    
+}
+  
+sensibilite
+
+#check sum of the sensibilite by model
+apply(as.matrix(sensibilite), MARGIN = 1, FUN = sum, na.rm = TRUE)
+
+write.csv2(sensibilite, file='../plot/sensibilite_models_final_essai.csv', sep="\t")
+```
+

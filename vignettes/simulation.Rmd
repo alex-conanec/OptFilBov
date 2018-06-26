@@ -1,0 +1,51 @@
+---
+title: "simulation"
+author: "Alexandre CONANEC"
+date: "31 mai 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r message = FALSE, warning = FALSE}
+library(mfe)
+load('../data/models_final.RData')
+data <- as.matrix(read.csv('../data/indicateurs.csv', header = T, sep = ';', dec = ','))
+```
+
+```{r }
+list_index <- list(EI = 1:3,
+                   QC = 4:10,
+                   QN = 11:17,
+                   QS = 18:24)
+
+n <- 5000
+
+
+sd_index <- apply(X = data[,list_index[[1]]], MARGIN = 2, FUN = sd)
+res <- simulation(data = data, n = n/4, models = models, index = list_index[[1]], 
+                  borne = 2*sd_index , list_index = list_index, seed = 123)
+res$initiation <- names(list_index)[1]
+
+i <- 2
+for (index in list_index[-1]){
+  
+  sd_index <- apply(X = data[, index], MARGIN = 2, FUN = sd)
+  res_interm <- simulation(data = data, n = n/4, models = models, index = index, 
+                  borne = 2*sd_index , list_index = list_index, seed = 123)
+  res_interm$initiation <- names(list_index)[i]
+  res <- rbind(res, res_interm)
+  i <- i + 1
+  
+}
+
+dim(res)
+res
+```
+
+```{r message = FALSE, warning = FALSE}
+write.csv2(res, file='../data/big_simulation3.csv', sep="\t")
+```
