@@ -40,7 +40,7 @@
 
 ridge <- function(X, Y, Ylabel = NULL){
 
-
+  require(glmnet)
   model <- glmnet::cv.glmnet(as.matrix(X), Y, family = "gaussian", alpha=0,
                              standardize = FALSE, nfolds = 10, grouped=FALSE)
 
