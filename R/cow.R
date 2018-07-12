@@ -1,5 +1,33 @@
-#predict a cow ----
-predict_cow <- function(cow_simulated, models, list_index, list_value, B=5, R=10){
+#' Predict a cow
+#'
+#' Predict the cow performances with the whole models
+#'
+#' @param cow_simulated a matrix or data.frame 1 by p attributes with the colnames matching with the models
+#' @param models list of all the models describing the cow attributes
+#' @param list_index vector containing the position in the data.frame of the fixed value
+#' @param list_value vector containing the value at the list_index position
+#' @param R integer to converge toward a stable result (10 by default)
+#' @param B integer for the number of bootstrap which switch the order of prediction (5 by default)
+#'
+#'
+#' @return a predicted cow througth a object cow
+#'
+#' @seealso \code{\link{plot.cow}}
+#'
+#'
+#' @examples
+#' library(mfe)
+#' load(models.RData) #need models fitted
+#' data(indicateurs)
+#' cow0 <- setNames(data.frame(matrix(0, ncol = ncol(indicateurs), nrow = 1)), colnames(indicateurs))
+#' pred_cow <- predict_cow(cow_simulated = cow0, models = models, list_index = 1:3, list_value = c(0, 1, -0.5), B=5, R=10)
+#' plot(pred_cow)
+#'
+#'
+#' @export
+
+
+predict_cow <- function(cow_simulated, models, list_index, list_value, R=10, B=5){
 
   cow_simulated_init <- cow_simulated
   k <- 1
@@ -39,8 +67,35 @@ predict_cow <- function(cow_simulated, models, list_index, list_value, B=5, R=10
 
 
 
-#plot.cow----
-plot.cow <- function(cow, models, choice = 'barplot', label_angle, fixed_value, radial.lim, R = 100, ...){
+#' Plot method for a object of class 'cow'
+#'
+#' Plot the cow attribute either a barplot with prediction interval, either a radar diagram
+#'
+#' @param cow a object of class 'cow' which will be plot
+#' @param models list of all the models describing the cow attributes
+#' @param choice choice of the graph among 'barplot' (by default) and 'radar_diag'
+#' @param label_angle integer between 0 and 360 which is the angle of the x labels for the barplot
+#' @param fixed_value vector containing the postion of the cow attributes which do not need prediction interval
+#' @param R integer for the number of predicted value by under-models for prediction interval (100 by default).
+#' Warning, if the number of the under-model is lower than R, the number of under-model will be the max.
+#'
+#' @seealso \code{\link{predict_cow}}
+#'
+#'
+#' @examples
+#' library(mfe)
+#' load(models.RData) #need models fitted
+#' data(indicateurs)
+#' cow0 <- setNames(data.frame(matrix(0, ncol = ncol(indicateurs), nrow = 1)), colnames(indicateurs))
+#' pred_cow <- predict_cow(cow_simulated = cow0, models = models, list_index = 1:3, list_value = c(0, 1, -0.5), B=5, R=10)
+#' plot(pred_cow)
+#'
+#' @export
+
+
+plot.cow <- function(cow, models, choice = 'barplot', label_angle, fixed_value, R = 100, bg_par = 'white', ...){
+
+  par(bg = bg_par)
 
   if (choice == 'barplot'){
 
@@ -50,10 +105,11 @@ plot.cow <- function(cow, models, choice = 'barplot', label_angle, fixed_value, 
 
       attr(cow, "class") <- NULL
 
-      interval_i <- pred_interval(model = models[[i]],
-                                  newdata = as.data.frame(cow),
-                                  method = 'qt',
-                                  R = R)
+      interval_i <- predict(model = models[[i]],
+                            newdata = as.data.frame(cow),
+                            interval  = TRUE,
+                            interval_method = 'qt',
+                            R = R)
 
       intervals[i,1] <- interval_i[1]
       intervals[i,2] <- interval_i[2]
@@ -64,7 +120,8 @@ plot.cow <- function(cow, models, choice = 'barplot', label_angle, fixed_value, 
                  xaxt = 'n',
                  space = c(0,0.5),
                  col = 'blue',
-                 beside = TRUE, ...)
+                 beside = TRUE,
+                 ...)
 
     #add the axis labels
     text(x = b-0.15,
@@ -98,28 +155,12 @@ plot.cow <- function(cow, models, choice = 'barplot', label_angle, fixed_value, 
                          rp.type = "p",
                          lwd = 3,
                          rad.col = 'blue',
-                         radial.lim = radial.lim,
                          start = 1.5708,
                          clockwise = TRUE,
-                         line.col = "red")
+                         line.col = "red",
+                         ...)
 
   }
 }
 
-
-#pred interval
-pred_interval <- function(model, newdata, method = 'sd', R = 100){
-
-  if (class(model) == "reg_lm"){
-    predict(model, newdata, interval = "prediction")[-1]
-  }else{
-    pred_all <- predict(model, newdata, predict.all = TRUE, R = R)
-    res <- apply(pred_all$individual, 2, function(x) {
-      c(mean(x, na.rm = TRUE) + c(-1.96,1.96) * sd(x, na.rm = TRUE),
-        quantile(x, c(0.025,0.975), na.rm = TRUE) )
-    })
-    if (method == 'sd') return(t(res)[,1:2]) else return(t(res)[,3:4])
-  }
-
-}
 

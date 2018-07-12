@@ -1,4 +1,39 @@
-#qlt_model
+#' Quality of a model
+#'
+#' Calculation of 3 criterias (R², R²adj, RMSE) for training data
+#' and give a approximation of this criterias without variance
+#' by using a bootstrap method
+#'
+#'
+#' @param model either an object of class \code{\link{reg_lm}, \code{\link{ridge},
+#' \code{\link{rf}, \code{\link{plsr}, \code{\link{sir}
+#' @param B number of bootstrap repetition
+#'
+#' @return a object of class 'qlt_model'. The object contains the 3 criterias
+#' calculated on the training data and corrected
+#'
+#' @seealso  \code{\link{plot.qlt_model}}
+#'
+#'
+#' @examples
+#' library(mfe)
+#' data(indicateurs)
+#' X <- indicateurs[, -c(1,2,3)]
+#' Y <- indicateurs[,1]
+#' fit1 <- ridge(X = X, Y = Y, Ylabel = colnames(indicateurs)[1])
+#' fit2 <- rf(X = X, Y = Y, Ylabel = colnames(indicateurs)[1])
+#' fit3 <- reg_lm(X = X, Y = Y, Ylabel = colnames(indicateurs)[1])
+#'
+#' quality_fit1 <- qlt_model(fit1, B = 100)
+#' quality_fit2 <- qlt_model(fit2, B = 100)
+#' quality_fit3 <- qlt_model(fit3, B = 100)
+#'
+#' plot(quality_fit1)
+#' plot(quality_fit2)
+#' plot(quality_fit3)
+#'
+#' @export
+
 qlt_model <- function(model, B = 100){
 
 
@@ -7,8 +42,7 @@ qlt_model <- function(model, B = 100){
          call. = FALSE)
 
   if (is.null(model$Ylabel))
-    stop("\"Ylabel\" is needed",
-         call. = FALSE)
+    stop("\"Ylabel\" is needed", call. = FALSE)
 
 
   corrected_criterias <- matrix(NA, nrow = B, ncol = 3)
@@ -111,18 +145,47 @@ R2 <- function(y, y_pred, k = 1){
 
 
 #RMSE
-rmse=function(y, y_pred){
+rmse <- function(y, y_pred){
 
   res <- 0
   for (i in 1:length(y)){
     res <- sum(res, (y[i] - y_pred[i])^2, na.rm = TRUE)
   }
 
+  res <- res/length(y)
   as.numeric(sqrt(res)/2)
 }
 
 
-#plot.qtl_model
+#' Plot méthod for 'qlt_model' object
+#'
+#'
+#' @param qlt_model object of class \code{\link{qlt_model}
+#' @param ... further arguments passed to or from other methods.
+#'
+#' @seealso  \code{\link{qlt_model}}
+#'
+#'
+#' @examples
+#' library(mfe)
+#' data(indicateurs)
+#' X <- indicateurs[, -c(1,2,3)]
+#' Y <- indicateurs[,1]
+#' fit1 <- ridge(X = X, Y = Y, Ylabel = colnames(indicateurs)[1])
+#' fit2 <- rf(X = X, Y = Y, Ylabel = colnames(indicateurs)[1])
+#' fit3 <- reg_lm(X = X, Y = Y, Ylabel = colnames(indicateurs)[1])
+#'
+#' quality_fit1 <- qlt_model(fit1, B = 100)
+#' quality_fit2 <- qlt_model(fit2, B = 100)
+#' quality_fit3 <- qlt_model(fit3, B = 100)
+#'
+#' plot(quality_fit1)
+#' plot(quality_fit2)
+#' plot(quality_fit3)
+#'
+#' @export
+
+
 plot.qlt_model <- function(qlt_model, ...){
 
   model <- qlt_model$model

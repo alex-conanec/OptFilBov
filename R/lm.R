@@ -49,7 +49,7 @@ reg_lm <- function(X, Y, Ylabel=NULL){
 }
 
 #predict reg_lm
-predict.reg_lm <- function(model, newdata, predict.all = FALSE, R = 100, ...){
+predict.reg_lm <- function(model, newdata, predict.all = FALSE, R = 100, interval = FALSE, interval_method = NULL, ...){
 
   model_cl_orig <- model
   class(model_cl_orig) <- 'lm'
@@ -57,7 +57,10 @@ predict.reg_lm <- function(model, newdata, predict.all = FALSE, R = 100, ...){
   res <- as.vector(res)
 
   if (!predict.all){
-    return(res)
+    if (!interval) return(res) else{
+      return(predict(model_cl_orig, newdata, interval = "prediction")[-1])
+    }
+
   }else {
     if (is.null(model$all_models)){
       model$all_models <- underModels.reg_lm(model, B = R)

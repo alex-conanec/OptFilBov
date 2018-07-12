@@ -11,9 +11,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ```{r message = FALSE, warning = FALSE}
-library(mfe)
-load('../data/models_final.RData')
+library(OptFilBov)
+load('../data/models_final_scale.RData')
 data <- as.matrix(read.csv('../data/indicateurs.csv', header = T, sep = ';', dec = ','))
+data <- scale(data)
 ```
 
 ```{r }
@@ -47,5 +48,5 @@ res
 ```
 
 ```{r message = FALSE, warning = FALSE}
-write.csv2(res, file='../data/big_simulation3.csv', sep="\t")
+write.csv2(res, file='../data/big_simulation4.csv', sep="\t")
 ```

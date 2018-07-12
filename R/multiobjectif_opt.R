@@ -90,11 +90,11 @@ pareto_finding <- function(X, Y, method = 'target', w, target, n = 5, plot = TRU
     if (method == 'weight_aggregation'){
 
       slope <- -w[1]/w[2]
-      intercept = Y[decision$index[n],][2] - Y[decision$index[n],][1] * slope
+      lower_point <- Y[decision$index[which(decision$value[,2] == min(decision$value[,2]))],]
+      intercept = lower_point[2] - lower_point[1] * slope
       abline(coef = c(intercept, slope))
 
     }
-
 
     # X <- as.data.frame(X)
     # X$X <- 1:nrow(X)
@@ -121,7 +121,7 @@ pareto_finding <- function(X, Y, method = 'target', w, target, n = 5, plot = TRU
     # }
 
 
-    list(X = X[decision$index, ],
+    list(X = X[as.numeric(rownames(Y[decision$index,])),],
          Y = decision$value)
   }
 

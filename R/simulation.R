@@ -1,5 +1,31 @@
-#simulation ----
-simulation <- function(data, n, models, index, borne, list_index, seed = 123){
+#' Simulation
+#'
+#'
+#' @param data the data frame of matrix use to train the models
+#' @param models list of the models of class \code{\link{reg_lm}, \code{\link{ridge},
+#' \code{\link{rf}, \code{\link{plsr}, \code{\link{sir}
+#' @param n number of virtual individu to predict
+#' @param borne
+#' @param list_index
+#' @param seed an integer to set the seed (123 by default)
+#'
+#' @return a matrix of the estimations of the Sobol sensitivity indices for each regressor
+#'
+#' @seealso  \code{\link{sensitivity::sobol}}
+#'
+#'
+#' @examples
+#' library(mfe)
+#' data(indicateurs)
+#' X <- indicateurs[, -c(1,2,3)]
+#' Y <- indicateurs[,1]
+#' fit <- ridge(X = X, Y = Y, Ylabel = colnames(indicateurs)[1])
+#' sobol_sensitivity(model = fit, order = 1, n = 1000, nboot = 100, seed = 123)
+#'
+#' @export
+
+
+simulation <- function(data, models, n, index, borne, list_index, seed = 123){
 
   #create a 2n*p matrix with contain rondom value for index columns between +/- borne
   set.seed(seed)

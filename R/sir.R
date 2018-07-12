@@ -50,6 +50,7 @@
 
 sir <- function(Y, X, H = 10, K = 1, Ylabel = NULL){
 
+  X <- as.matrix(X)
   beta <- edrGraphicalTools::edr(Y, X, H = H, K = K, method = "SIR-I")$matEDR[, 1, drop = FALSE]
   index <- X %*% beta
   hopt <- cv_bandwidth(index, Y, graph.CV=FALSE)$hopt
@@ -68,10 +69,10 @@ sir <- function(Y, X, H = 10, K = 1, Ylabel = NULL){
 
 
 #predict.sir ----
-predict.sir <- function(model, newdata, predict.all=FALSE, R = 100, ...){
+predict.sir <- function(model, newdata, predict.all=FALSE, R = 100, interval = FALSE, interval_method = 'sd', ...){
 
   newdata <- as.data.frame(newdata)
-  X <- as.matrix(newdata[, which(colnames(newdata) %in% model$X_labels)])
+  X <- as.matrix(newdata[, which(colnames(newdata) %in% model$Xlabels)])
   index <- X %*% model$beta
   res <- stats::ksmooth(model$index, model$y_train, kernel = "normal",
                         bandwidth = model$hopt, x.points = index)$y[rank(index)]
@@ -79,7 +80,23 @@ predict.sir <- function(model, newdata, predict.all=FALSE, R = 100, ...){
   res <- as.vector(res)
 
   if (!predict.all){
-    return(res)
+    if (!interval) return(res) else{
+
+      if (is.null(model$all_models)){
+        model$all_models <- underModels.rf(model, B = R)
+      }
+
+      pred_all <- predict(model, newdata, predict.all = TRUE, R = R)
+      res <- apply(pred_all$individual, 2, function(x) {
+        c(mean(x, na.rm = TRUE) + c(-1.96,1.96) * sd(x, na.rm = TRUE),
+          quantile(x, c(0.025,0.975), na.rm = TRUE) )
+      })
+      if (interval_method == 'sd') {
+        return(t(res)[,1:2]) } else if (interval_method == 'qt') {
+          return(t(res)[,3:4])} else {
+            stop("The \"interval_method\" have to be in c(\'sd\',\'qt\')", call. = FALSE)}
+    }
+
   }else{
     if (is.null(model$all_models)){
       model$all_models <- underModels.sir(model, B = R)

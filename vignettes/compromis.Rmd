@@ -11,10 +11,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ```{r }
-library(mfe)
+library(OptFilBov)
 
 #import data
-data <- as.matrix(read.csv('../data/big_simulation3.csv', header = T, sep = ';', dec = ',')[,-26])
+data <- as.matrix(read.csv('../data/big_simulation4.csv', header = T, sep = ';', dec = ',')[,-26])
 initiation <- as.factor(as.vector(read.csv('../data/big_simulation3.csv', header = T, sep = ';', dec = ',')[,26]))
 CDC <- read.csv('../data/cahier_des_charges2.csv', header = T, sep = ';', dec = ',')
 CDC$objectif <- as.factor(CDC$objectif) 
@@ -29,8 +29,6 @@ for (k in levels(CDC$objectif)){
   
 }
 
-# constraint <- list(seuil_EI_QC = CDC$seuil[which(! is.na(CDC$seuil))],
-#                    index_seuil = which(! is.na(CDC$seuil)))
 
 constraint <- list(seuil_plus = CDC$seuil[which(! is.na(CDC$seuil) & CDC$seuil > 0)],
                    seuil_minus = CDC$seuil[which(! is.na(CDC$seuil) & CDC$seuil < 0)],
@@ -60,7 +58,19 @@ lines(ksmooth(x = res[,1], y = res[,2]), col = 'red')
 # dev.off()
 
 X_scale <- scale(data)
-X_decision <- pareto_finding (X = X_scale, Y = res, method = 'target', target = c(2,3), n = 5, plot = TRUE)
+X_decision <- pareto_finding (X = X_scale, Y = res, method = 'target', target = c(1.5,2.5), n = 2, plot = TRUE)
+
+
+bon <- c(4462, 4497)
+mauvais <- c(3907, 4374)
+a <- rep(0, nrow(res))
+a[bon] <- 1
+a[mauvais] <- 2
+a <- as.factor(a)
+
+plot(res, col = c('grey', 'blue', 'red')[a])
+dev.copy(png, '../plot/compromis.png')
+dev.off()
 ```
 
 Par rapport aux derniers resultats, on remarque que QS et QN sont lègerement negativement correles. Bon signe pour notre étude même si c'est pas flagrant et que les points du milieu sont un peu bizarres (cf l'explication plus bas) 
@@ -73,9 +83,22 @@ for (i in 1:nrow(X_decision$X)){
 
   cow <- as.matrix(as.data.frame(t(X_decision$X[i,]))[-1])
   class(cow) <- 'cow'
-  plot(cow, choice = 'radar_diag',  radial.lim = c(-3,3))
+  plot(cow, choice = 'radar_diag',  radial.lim = c(-4,4))
   
-  dev.copy(png, paste('../plot/vache', i, '.png'))
+  dev.copy(png, paste('../plot/bon_profil', i, '.png'))
+  dev.off()
+
+}
+
+X_decision <- pareto_finding (X = X_scale, Y = res, method = 'target', target = c(-1.5,-2.5), n = 2, plot = TRUE)
+
+for (i in 1:nrow(X_decision$X)){
+
+  cow <- as.matrix(as.data.frame(t(X_decision$X[i,]))[-1])
+  class(cow) <- 'cow'
+  plot(cow, choice = 'radar_diag',  radial.lim = c(-4,4))
+  
+  dev.copy(png, paste('../plot/mauvais_profil', i, '.png'))
   dev.off()
 
 }

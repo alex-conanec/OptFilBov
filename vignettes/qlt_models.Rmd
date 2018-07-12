@@ -11,8 +11,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r message = FALSE, warning = FALSE}
 #load library
-library(mfe)
-load('../data/models_final.RData')
+library(OptFilBov)
+load('../data/models_final_scale.RData')
 
 #import data
 data <- as.matrix(read.csv('../data/indicateurs.csv', header = T, sep = ';', dec = ','))
@@ -35,7 +35,7 @@ for (i in 1:ncol(data)){
 }
 
 
-res$RMSE <- res$RMSE * (1/diag(var(data)))
-res$RMSE_cor <- res$RMSE_cor * (1/diag(var(data)))
-write.csv2(res, file='../plot/qtl_models_final.csv', sep="\t")
+# res$RMSE <- res$RMSE * (1/diag(var(data)))
+# res$RMSE_cor <- res$RMSE_cor * (1/diag(var(data)))
+write.csv2(res, file='../plot/qtl_models_final_scale.csv', sep="\t")
 ```

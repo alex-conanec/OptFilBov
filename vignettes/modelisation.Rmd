@@ -16,6 +16,7 @@ library(mfe)
 
 ```{r}
 data <- as.matrix(read.csv('../data/indicateurs.csv', header = TRUE, sep = ';', dec = ','))
+data <- scale(data)
 ```
 
 ```{r }
@@ -206,5 +207,5 @@ for (i in 1:length(models)){
 }
 
 
-save(models, file = '../data/modelsFifi.RData')
+save(models, file = '../data/models.RData')
 ```

@@ -64,15 +64,20 @@ ridge <- function(X, Y, Ylabel = NULL){
 #' If TRUE, a matrix of dimension \code{R} by \code{nrow(neawdata)} is return,
 #' containing several predictions from undermodels generate by \code{\link{underModel.ridge}}
 #' @param R numeric value which set the number of under-prediction made when predict.all=TRUE
+#' @param interval a boolean value (FALSE by default) to return a interval of prediction
+#' @param interval_method either 'sd' (by default) or 'qt'
 #' @param ... further arguments passed to or from other methods.
 #'
-#' @return Either a numeric value if predict.all=FALSE
+#' @return a numeric value if predict.all=FALSE and interval=FALSE.
+#' if interval=TRUE it return a interval for each value to predict
 #' or a list containing the following component if predict.all=TRUE:
 #'
 #' \item{aggregate}{a numeric value or matrix which is the prediction from the model
 #'
 #' \item{individual}{a matrix of dimension \code{R} by \code{nrow(neawdata)}
 #' containing the R prediction for the n newdata passed throught}
+#'
+#'
 #'
 #' @seealso  \code{\link{ridge}}, \code{\link{underModel.ridge}}
 #'
@@ -89,9 +94,9 @@ ridge <- function(X, Y, Ylabel = NULL){
 #' @export
 
 
-predict.ridge <- function(model, newdata, predict.all = FALSE, R = 100, ...){
+predict.ridge <- function(model, newdata, predict.all = FALSE, R = 100, interval = FALSE, interval_method = 'sd', ...){
 
-  library(glmnet)
+  require(glmnet)
   if (class(newdata) == 'numeric') newdata <- as.data.frame(t(newdata))
 
   model_cl_orig <- model
@@ -101,7 +106,23 @@ predict.ridge <- function(model, newdata, predict.all = FALSE, R = 100, ...){
   res <- as.vector(res)
 
   if (!predict.all){
-    return(res)
+    if (!interval) return(res) else{
+
+      if (is.null(model$all_models)){
+        model$all_models <- underModels.rf(model, B = R)
+      }
+
+      pred_all <- predict(model, newdata, predict.all = TRUE, R = R)
+      res <- apply(pred_all$individual, 2, function(x) {
+        c(mean(x, na.rm = TRUE) + c(-1.96,1.96) * sd(x, na.rm = TRUE),
+          quantile(x, c(0.025,0.975), na.rm = TRUE) )
+      })
+      if (interval_method == 'sd') {
+        return(t(res)[,1:2]) } else if (interval_method == 'qt') {
+          return(t(res)[,3:4])} else {
+            stop("The \"interval_method\" have to be in c(\'sd\',\'qt\')", call. = FALSE)}
+    }
+
   }else {
     if (is.null(model$all_models)){
       model$all_models <- underModels.ridge(model, B = 100)

@@ -62,3 +62,20 @@ for (i in 1:length(models)){
 
 
 save(models, file = 'data/models_final_scale.RData')
+
+getwd()
+library(mfe)
+data <- read.csv('data/indicateurs.csv', header = TRUE, sep = ';', dec = ',')
+cow0 <- setNames(data.frame(matrix(0, ncol = ncol(data), nrow = 1)), colnames(data))
+cow <- predict_cow(cow_simulated = cow0, models = models, list_index = 1:3, list_value = c(0, 1, -0.5), B=5, R=10)
+plot(pred_cow, models, choice = 'radar_diag', ylim = c(-2, 2), main = 'Vache 2',
+     label_angle = 45, fixed_value = 1:3, radial.lim = c(-3, 3), R = 3)
+
+X=as.matrix(data[,-(1:3)])
+
+a=reg_lm(Y=data[,7], X=data[,-(4:10)], Ylabel = colnames(data)[7])
+
+predict(model=a, newdata = data[1,], predict.all = T)
+
+summary(a)
+sobol_sensitivity(a, order = 1, nboot = 10)

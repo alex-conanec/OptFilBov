@@ -4,7 +4,8 @@
 \alias{predict.ridge}
 \title{Predict method for ridge model fits}
 \usage{
-\method{predict}{ridge}(model, newdata, predict.all = FALSE, R = 100, ...)
+\method{predict}{ridge}(model, newdata, predict.all = FALSE, R = 100,
+  interval = FALSE, interval_method = "sd", ...)
 }
 \arguments{
 \item{model}{'ridge' class object}
@@ -16,6 +17,10 @@ If TRUE, a matrix of dimension \code{R} by \code{nrow(neawdata)} is return,
 containing several predictions from undermodels generate by \code{\link{underModel.ridge}}}
 
 \item{R}{numeric value which set the number of under-prediction made when predict.all=TRUE}
+
+\item{interval}{a boolean value (FALSE by default) to return a interval of prediction}
+
+\item{interval_method}{either 'sd' (by default) or 'qt'}
 
 \item{...}{further arguments passed to or from other methods.}
 }
