@@ -1,1 +1,2 @@
 exportPattern("^[[:alpha:]]+")
+import(glmnet, randomForest, sensitivity, pls, plotrix, edrGraphicalTools)
