@@ -11,7 +11,7 @@ To install the package on your machine, you first need to install devtools if yo
 install.package('devtools')
 ```
 
-Then you can you use devtools to install OptFilBov package from my Github account:
+Then you can use devtools to install OptFilBov package from my Github account:
 ```r 
 devtools::install_github('alex-conanec/OptFilBov')
 ```
