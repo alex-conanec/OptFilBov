@@ -54,7 +54,7 @@ MinMax <- function(X, target, n){
 
 
 #pareto finding
-pareto_finding <- function(X, Y, method = 'target', w, target, n = 5, plot = TRUE){
+pareto_finding <- function(X, Y, method = 'target', w, target, n = 5, plot = TRUE, bg_par='white'){
 
 
   if (!(method %in% c("target", "weight_aggregation")))
@@ -79,6 +79,7 @@ pareto_finding <- function(X, Y, method = 'target', w, target, n = 5, plot = TRU
 
   if (plot == TRUE){
 
+    par(bg=bg_par)
     plot(Y, col = c('red', 'blue')[as.factor(1:nrow(Y) %in% decision$index)])
 
     if (method == 'target'){

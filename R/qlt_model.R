@@ -186,7 +186,9 @@ rmse <- function(y, y_pred){
 #' @export
 
 
-plot.qlt_model <- function(qlt_model, ...){
+plot.qlt_model <- function(qlt_model, bg_par='white', ...){
+
+  par(bg = bg_par)
 
   model <- qlt_model$model
   length_char <- length(model$Xlabels)

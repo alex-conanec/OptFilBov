@@ -136,7 +136,9 @@ underModels.sir <- function(model, B = 100, ...){
 
 
 #plot.sir
-plot.sir <- function(object, choice = 'eigenValue', ...){
+plot.sir <- function(object, choice = 'eigenValue', bg_par='white', ...){
+
+  par(bg=bg_par)
 
   if (choice == 'eigenValue'){
 
