@@ -95,7 +95,7 @@ predict_cow <- function(cow_simulated, models, list_index, list_value, R=10, B=5
 
 plot.cow <- function(cow, models, choice = 'barplot', label_angle, fixed_value, R=100,
                      bg_par = 'white', color="green", legend_label=NULL, cex=1, x_legend=0,
-                     y_legend=0,...){
+                     y_legend=0, lty=1, ...){
 
   par(bg = bg_par)
 
@@ -162,8 +162,9 @@ plot.cow <- function(cow, models, choice = 'barplot', label_angle, fixed_value, 
                          mar=c(1, 2.5, 1, 4.5),
                          line.col = color,
                          cex=cex,
+                         lty=lty,
                          ...)
-    if (!is.null(legend_label)) legend(x=x_legend, y=y_legend,legend = legend_label, lwd = 3, col = color, cex = cex)
+    if (!is.null(legend_label)) legend(x=x_legend, y=y_legend,legend = legend_label, lwd = 3, col = color, cex = cex, lty=lty)
 
 
   }
