@@ -123,7 +123,8 @@ pareto_finding <- function(X, Y, method = 'target', w, target, n = 5, plot = TRU
 
 
     list(X = X[as.numeric(rownames(Y[decision$index,])),],
-         Y = decision$value)
+         Y = decision$value,
+         Y_index = decision$index)
   }
 
 }
