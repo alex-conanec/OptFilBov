@@ -1,0 +1,645 @@
+---
+title: "Méthode"
+author: "Alexandre CONANEC"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r warning = FALSE, message = FALSE}
+library(ClustOfVar)
+library(FactoMineR)
+library(OptFilBov)
+```
+
+```{r}
+bdd <- read.csv('../data/bdd.csv', header = TRUE, sep = ';', dec = '.')
+colnames(bdd)
+
+#groupe donnee
+EI <- bdd[,5:12]
+QC <- bdd[,13:33]
+QN <- bdd[,34:73]
+QS <- bdd[,74:86]
+```
+
+Procedons au clustering de EI.
+```{r}
+tree_EI <- hclustvar(EI)
+plot(tree_EI)
+stab_EI <- stability(tree_EI, B = 40)
+```
+
+Pour choisir le nombre d'indicateurs qui composera EI, on s'appuie sur le dendrogramme et la stabilite des clusters qui a ete evaluee par bootstrap a l'aide de la fonction stability. On choisit de couper a 3.
+```{r}
+k_EI <- 3
+clusters_EI <- cutreevar(tree_EI,k_EI)
+```
+
+Resumons les correlations (2eme colonne : 'correlation') et la part de l'information conservee (3eme colonne: 'squared loading') de chaque indicateur
+```{r}
+summary(clusters_EI)
+```
+
+Le premier cluster represente le poids vif au debut et a la fin de l'engraissement de l'animal. D'un point de vue expert, il est plus interessant de garder le **poids vif final** que le poids vif initial (ou un melange des deux). Meme conclusion pour le GMQ. Au final les GMQ intermediaires ne seront pas d'une grande aide dans l'interpretabilite. Conserver uniquement le **GMQ moyen** sur l'ensemble de la periode de finition semble le plus pertinent. En revanche le dernier cluster regroupe 3 indicateurs d'efficience alimentaire qui sont complementaires et differents. Il est donc ici interessant de conserver l'index synthetique de ce cluster, que l'on renommera **Eff_alim**. Regardons comment sont correles nos 3 indicateurs d'efficacite alimentaire avec l'index synthetique. 
+```{r}
+Eff_alim <- clusters_EI$score[,3]
+pca_col <- PCA(cbind(EI[, 6:8], Eff_alim), graph = FALSE)
+plot(pca_col, axes = c(1,2), choix = 'var')
+```
+
+Regardons maintenant comment sont correles nos 3 indicateurs retenus pour decrire EI
+```{r}
+EI_final <- scale(data.frame(PV = EI[, 2], GMQ = EI[, 3], Eff_alim = Eff_alim),
+                  center = TRUE,
+                  scale = FALSE)
+
+res_pca <- PCA(EI_final, graph = FALSE)
+plot(res_pca, axes = c(1,2), choix = 'var')
+```
+
+Procedons maintenant au clustering de la QC.
+```{r}
+tree_QC <- hclustvar(QC)
+plot(tree_QC)
+stab_QC <- stability(tree_QC, B = 40)
+head(stab_QC$meanCR, 15)
+```
+
+Pour choisir le nombre de clusters qui decomposent QC, on s'appuie egalement sur le dendrogramme et la stabilite des clusters comme pour EI. On choisit de couper en 6 ce qui nous confere des groupes assez homogenes, et decrivant davantage la QC que si on avait coupe en 4.
+```{r}
+k_QC <- 6
+clusters_QC <- cutreevar(tree_QC,k_QC)
+summary(clusters_QC)
+```
+
+Le premier cluster resume contient 4 indicateurs : proportion d'os dans la carcasse, poids de la carcasse, le pH et la note de couleur de gras. La note couleur de gras n'est pas tres bien representee et n'est pas d'une grande importance dans la QC. De plus, c'est un indicateur resumant des notes presentant au final peu de variabilite (soit 1 soit 2). En revanche bien que le **pH** soit plus un indicateur de causalite de la QC qu'un objectif de QC en tant que tel, il peut s'averer utile pour expliquer les indicateurs de la qualite sensorielle, la tendrete par exemple. Il sera donc conserve en tant qu'indicateur individuel. Les deux derniers indicateurs (proportion d'os et poids de la carcasse) sont tres negativement correles l'un avec l'autre. Cela parait logique puisque les os ont une densite plus faible que le muscle et le gras. Bien qu'il soit logique de retrouver dans le meme cluster ces deux variables, seul le **poids de carcasse** a en fait reellement un interet pour decrire la QC. C'est donc cet indicateur qui sera retenu. Au final, pour ce premier cluster le pH et le poids de carcasse seront retenu.
+Le deuxieme cluster est uniquement compose de la **conformation** de l'animal. C'est un indicateur interessant pour decrire la QC. Il sera donc conserve.
+Le troisieme cluster est compose de 3 elements caracterisant la couleur, le L\*, le h\* et la note de couleur (de muscle). Ces indicateurs de couleurs indiquent plutet la brillance de la viande (ou disons si la viande est claire ou foncee). Cette composante de la couleur est dependante de la proportion de gras present dans le morceau, car le gras est blanc et donc plus le morceau mesure est gras plus la quantite de blanc participant a la mesure sera important. Il est donc logique de retrouve un indicateur de gras (ici la note de gras donnee e l'abattoir 2 ou 3) correle avec cette composante de la couleur. Ce cluster est donc interessant dans son ensemble pour representer la composante de la couleur decrite. L'index synthetique de ce cluster sera donc conserve et renomme **col_lumi**. Regardons comment sont correles les indicateurs de ce cluster a l'aide d'une ACP.  
+```{r}
+col_lumi <- clusters_QC$score[,3]
+pca_col <- PCA(cbind(QC[, c(3, 13, 14, 18)], col_lumi), graph = FALSE)
+plot(pca_col, axes = c(1,2), choix = 'var')
+```
+
+On remarque ici que l'index synthetique est tres negativement correle avec le h\*. Dans un soucis d'interpretabilite, nous utiliserons l'oppose de l'index synthetique pour qu'il varie dans le meme sens que h\* et L\* 
+
+Le quatrieme cluster est compose de tous les indicateurs de gras de la carcasse en quantite. On peut donc sans trop se tromper conserver l'index synthetique en le renommant quantite de gras (**Qte_gras**).
+Le cinquieme cluster est compose de la proportion de gras et de muscle, du marbre et du persille. La proportion de muscle est negativement correlee avec l'ensemble des autres indicateurs de gras. Cela semble logique car plus il y a de muscle en proportion et moins il y a de gras (et inversement). Ce cluster represente donc la proportion de gras par opposition au muscle. On conservera donc l'index synthetique renomme **prop_gras**.
+Le dernier cluster est un ensemble homogene d'indicateur de couleur a\*, b\* et C\*. Ce dernier etant une combinaison des deux autres, il se trouve que l'index synthetique est correle a 100% avec lui. Conserve l'index synthetique ou le C\* revient donc au meme, on appellera donc ce dernier indicateur de QC **col_C**.
+Observons maintenant l'ensemble de ces indicateurs sur 4 dimensions d'une ACP.
+```{r}
+QC_final <- scale(data.frame(col_C = QC$C_etoile,
+                               pH = QC$pH,
+                               Qte_gras = -clusters_QC$score[, 4],
+                               Prop_gras = -clusters_QC$score[, 5],
+                               poids_carc = QC$poids_carcasse,
+                               confo = QC$code_confo,
+                               col_lumi = -clusters_QC$score[, 3]),
+                    center = TRUE,
+                    scale = FALSE)
+
+res_pca <- PCA(QC_final, graph = FALSE)
+plot(res_pca, axes = c(1,2), choix = 'var')
+plot(res_pca, axes = c(3,4), choix = 'var')
+```
+
+Procedons maintenant au clustering de la QN.
+```{r}
+tree_QN <- hclustvar(QN)
+plot(tree_QN)
+stab_QN <- stability(tree_QN, B = 40)
+head(stab_QN$meanCR, 15)
+```
+
+Pour choisir le nombre de clusters qui decomposent QN, on s'appuie egalement sur le dendrogramme et la stabilite des clusters. 
+```{r}
+k_QN <- 8
+clusters_QN <- cutreevar(tree_QN,k_QN)
+summary(clusters_QN)
+```
+
+Le premier cluster regroupe les teneurs en lipides totaux (mesures de 2 faeons differentes) et differentes familles de lipides (TG, PL, PI, PE, PC, CL). L'augmentation de ces dernieres est sensiblement liee a l'augmentation de la teneur en lipides totaux. Il semble donc ici pertinent de ne conserver comme indicateur que la teneur en lipide totaux (**lipide_tnr**) puisque les autres indicateurs sont dans ce groupe uniquement parce qu'ils dependent fortement de cette teneur (analyse d'un point de vue expert). Seul l'un des deux indicateurs de teneur en lipides (***pas l'HPLC car semble moins precis \?***) sera donc conserve. 
+Le deuxieme cluster est compose des AG longs en teneur et en proportion. Il fait sens ici de conserver l'index synthetique resumant les deux indicateurs, renomme **AGL**.
+Le troisieme cluster regroupe la proportion des TG, PL, CL et DG. On remarque de TG est negativement correle avec les autres indicateurs. On en conclu que cet index synthetique resume l'opposition entre la proportion de TG et celle des autres familles de lipides. On appellera cet index synthetique **prop_TG**.
+Le quatrieme cluster regroupe 2 AG et un ratio. On remarque d'abord que l'un des AG (le C14:0) n'est pas tres bien represente par l'index synthetique (seulement 52% de l'information est conservee). Il n'est en plus pas tres discute dans la litterature et ne presente vraisemblablement que peu d'interet pour l'interpretation de QN. Le C18:0 en revanche est tres bien correle avec le ratio C16:0/C18:0. Cela semble logique puisqu'il fait partie de ce ratio. La proportion de C18:0 est importante pour decrire QN car c'est un AG decrit comme neutre pour la sante. A l'inverse le C16:0 est mauvais pour la sante. Le rapport C16:0/C18:0 permet donc de nuancer l'impact sur la sante de la teneur en AGS. Dans un soucis de clarte dans l'interpretation, il a donc ete choisi de conserve uniquement le ratio **C16:0/C18:0** comme indicateur de QN.
+Le 5eme cluster regroupe la somme des AG omega 3, le premier precurseur des omegas 3 l'ALA (C18:3 n-3), les rapport opposant omegas 6 aux omegas 3, et les AGS et C16:0 (naturellement correle deux ? deux). Il est normal de retrouver les AGS en opposition avec les omegas et positivement correle avec les AGPI n-6. En effet, lorsque les AGPI sont faible les omegas 3 sont tres faible alors que la part d'omegas 6 par rapport au om?gas 3 augmente. On conclu donc que ce cluster decrit donc l'equilibre qui peut exister entre les omegas 3 et 6 au travers notamment du rapport **omegas 6 totaux et omegas 3 totaux** (n6_sur_n3).
+Le sixieme cluster regroupe des AGPI, des sommes d'AGPI, des ratios contenant des AGPI ainsi que les AGMI. On pourrait donc dire que ce cluster regroupe les AG qui ne sont pas satures. On pourrait donc appeler ce groupe celui des AG insatures (**AGMI_AGPI**), represente par l'index synthetique. A noter que le cluster 5 et 6 sont corrélé avec un **R=`r cor(clusters_QN$score[,5], clusters_QN$score[,6])`**
+Le septieme cluster regroupe les CLA totaux et le CLA (C18:2 9cis 11tr) et le C18:1 11tr et un peu plus faiblement corr?l?, le C18:1 9tr. Le C18:1 11tr est bien connu pour etre un precurseur du CLA, le C18:1 9tr sans doute aussi dans une moindre mesure **(A VERIFIER)**. On peut donc logiquement dire que ce groupe represente les CLA. Cependant dans un soucis d'interpretabilite des resultats, il a ete choisi de conserver uniquement l'indicateur **CLA**, etant donne qu'il fait l'objet de davantage de recherche. La comparaison avec des resultats de travaux sur les CLA lors de la discussion est donc facilitee par ce choix. 
+Le dernier cluster regroupe la somme des AG *trans* et le C18:1 10tr. Ce dernier est notamment reconnu pour avoir un impact negatif sur la sante. Nous conserverons donc l'index synthetique renomme **AGtr** 
+
+
+Une ACP de l'ensemble des indicateurs decrit permet de visualiser la complementarite de ces indicateurs de QN. 
+```{r}
+QN_final <- scale(data.frame(ratio_C160_C180 = QN$ratio_C16_C18_0,
+                             prop_TG = QN$TG_prct,
+                             lipide_tnr = QN$lipid,
+                             AGMI_vs_AGPI = clusters_QN$score[,6],
+                             AGL = -clusters_QN$score[,2],
+                             AGtr = clusters_QN$score[,8],
+                             n6_sur_n3 = QN$ratio_n6_n3,
+                             CLA = QN$CLA),
+                   center = TRUE,
+                   scale = FALSE)
+
+res_pca <- PCA(QN_final, graph = FALSE)
+
+plot(res_pca, axes = c(1,2), choix = 'var')
+plot(res_pca, axes = c(3,4), choix = 'var')
+```
+
+Nous remarquons une forte correlation entre la proportion de TG et la teneur en lipide. Cela semble effectivement logique et nous decidons donc de retirer la proportion en TG qui n'apporte au final que peu d'interet a l'interpretation.
+```{r}
+QN_final <- QN_final[,-2]
+```
+
+Procedons enfin au clustering de la QS.
+```{r}
+tree_QS <- hclustvar(QS)
+plot(tree_QS)
+stab_QS <- stability(tree_QS, B = 40)
+stab_QS$meanCR
+k_QS <- 5
+clusters_QS <- cutreevar(tree_QS,k_QS)
+summary(clusters_QS)
+```
+
+Nous remarquons sur ce premier clustering de QS que l'appreciation globale se lie tres bien au Meat Quality 4 (MQ4), ce qui semble logique selon les travaux effectues par les chercheurs australiens e l'origine du systeme MSA. Ces indicateurs sont neanmoins des indicateurs hedonistes et le choix a ete fait au final de les ecarter de la QS bien qu'a notre disposition pour cette etude. Si l'on suit l'avis des experts, la QS est habituellement mesuree au travers de la **tendrete**, de la **jutosite** et de la flaveur. On fera donc le choix de conserver ces deux premiers indicateurs. Pour ce qui est de la flaveur, nous disposons d'un large panel de descripteurs permettant de qualifier cette caracteristique de la viande. Nous avons donc choisi de proceder a un second clustering de variable au sein des differents indicateurs de flaveur pour ne retenir que les plus pertinents et les plus complementaires.
+```{r}
+flaveur <- QS[,c(3,4:11)]
+tree_flaveur <- hclustvar(flaveur)
+plot(tree_flaveur)
+stab_flaveur <- stability(tree_flaveur, B = 40)
+stab_flaveur$meanCR
+```
+
+Le bootstrap sur la stabilite ne donne pas un nombre flagrant de cluster a choisir. A l'aide du dendrogramme on choisit finalement d'en selectionner 5.
+```{r}
+k_flaveur <- 5
+clusters_flaveur <- cutreevar(tree_flaveur,k_flaveur)
+summary(clusters_flaveur)
+```
+
+Le premier cluster regroupe l'intensite de la flaveur avec la flaveur sucre. L'index conserve est nomme **intense_flav_sucre**. 
+Le second cluster regoupe la flaveur sang avec la flaveur acide. L'index conserve est en consequence nomme **sang_acide**.
+Le troisieme cluster ne contient que la flaveur **amere**.
+Le quatrieme cluster oppose la flaveur gras a la flaveur metallique. L'index synthetique positivement correle avec la flaveur gras sera nomme **gras_vs_metal**.
+Enfin le dernier cluster regroupe la flaveur poisson et rance. L'index synthetique sera donc nomme **rance_poisson**.
+Regardons la projection de ces indicateurs sur 2 plans d'une ACP.
+```{r}
+QS_final <- scale(data.frame(tendrete = QS$intensite_tendrete,
+                                jutosite = QS$intensite_jutosite,
+                                amere = QS$amere,
+                                rance_poisson = clusters_flaveur$score[,5],
+                                gras_vs_metal = -clusters_flaveur$score[,4],
+                                sang_acide = -clusters_flaveur$score[,2],
+                                intense_flav_sucre = -clusters_flaveur$score[,1]),
+                     center = TRUE,
+                     scale = FALSE)
+
+res_pca <- PCA(QS_final, graph = FALSE)
+plot(res_pca, axes = c(1,2), choix = 'var')
+plot(res_pca, axes = c(3,4), choix = 'var')
+```
+
+Resumons pour finir l'ensemble des `r ncol(EI_final) + ncol(QC_final) + ncol(QN_final) + ncol(QS_final)` indicateurs selectionnes:
+```{r}
+data_final <- cbind(EI_final, QC_final, QN_final, QS_final)
+colnames(data_final)
+
+pca_final <- PCA(data_final, graph = FALSE)
+plot(pca_final, axes = c(1,2), choix = 'var')
+plot(pca_final, axes = c(3,4), choix = 'var')
+```
+
+Sauvegarde des indicateurs
+```{r warning = FALSE}
+# write.csv2(data_final, file='../data/indicateurs.csv', sep="\t")
+```
+
+```{r warning = FALSE}
+library(modvarsel)
+```
+
+```{r}
+data <- as.matrix(read.csv('../data/indicateurs.csv', header = TRUE, sep = ';', dec = ','))
+data <- scale(data)
+```
+
+Computationnellement lourd, necessite plusieurs heure selon la performance de la machine
+
+```{r }
+# #script R pour creer les modeles
+# choiceModels <- list()
+# PI = list(EI = 1:3,
+#           QC = 4:10,
+#           QN = 11:17,
+#           QS = 18:24)
+# 
+# for (i in 1:24){
+#   if (i %in% PI$EI){
+#     res <- choicemod(X = data[,-PI$EI], Y = data[, i], method = c("linreg", "sir", "rf", "plsr", "ridge"), N = 50, nperm = 100)
+#   }
+# 
+#   if (i %in% PI$EI){
+#     res <- choicemod(X = data[,-PI$EI], Y = data[, i], method = c("linreg", "sir", "rf", "plsr", "ridge"), N = 50, nperm = 100)
+#   }
+# 
+#   if (i %in% PI$EI){
+#     res <- choicemod(X = data[,-PI$EI], Y = data[, i], method = c("linreg", "sir", "rf", "plsr", "ridge"), N = 50, nperm = 100)
+#   }
+# 
+#   if (i %in% PI$EI){
+#     res <- choicemod(X = data[,-PI$EI], Y = data[, i], method = c("linreg", "sir", "rf", "plsr", "ridge"), N = 50, nperm = 100)
+#   }
+#   choiceModels[[i]] <- res
+#   save(choiceModels, file = '../data/choiceModels2.RData')
+# }
+```
+
+Les objets choicemod ont donc été stockés et chargés ci-après
+
+```{r plot_modvarsel}
+#select and save the model in a list
+set.seed(123)
+load('../data/choiceModelsFinal.RData')
+models <- list()
+
+for (i in 1:24){
+  #load modeles
+  Ylabel <- colnames(data)[i]
+  print(paste('Etude des modeles de prediction de:', Ylabel, sep = ' '))
+  head(choiceModels[[i]]$mse)
+  head(choiceModels[[i]]$mse_all)
+  head(choiceModels[[i]]$r2)
+  
+  #selection of the best model on the R2
+  perf_moy <- apply(X = choiceModels[[i]]$mse, MARGIN = 2, FUN = mean, na.rm = TRUE)
+  sel_model <-  which(perf_moy == min(perf_moy))
+  
+  #plot the best method ----
+  #RMSE
+  boxplot(choiceModels[[i]], method = c("linreg", "sir", 'rf', "plsr", "ridge"), 
+          type = "both", col = rgb(0,1,0,0.2), las = 2,
+          main = "N = 50 replications")
+  
+  
+  
+  ######plot the variables selected for each model ----
+  ##linreg
+  #varaible selected
+  barplot(choiceModels[[i]], method="linreg", type="varsel", las = 2, 
+          main = "linreg", col = rgb(1,1,0,0.2))
+  
+  #total use of each variable in all the simulation
+  barplot(choiceModels[[i]], method="linreg", type="sizemod", las = 2, 
+          main = "linreg", col = rgb(0,1,1,0.2))
+  
+  ##sir
+  #varaible selected
+  barplot(choiceModels[[i]], method="sir", type="varsel", las = 2, 
+          main = "sir", col = rgb(1,1,0,0.2))
+  
+  #total use of each variable in all the simulation
+  barplot(choiceModels[[i]], method="sir", type="sizemod", las = 2, 
+          main = "sir", col = rgb(0,1,1,0.2))
+  
+  ##rf
+  #varaible selected
+  barplot(choiceModels[[i]], method="rf", type="varsel", las = 2, 
+          main = "rf", col = rgb(1,1,0,0.2))
+  
+  #total use of each variable in all the simulation
+  barplot(choiceModels[[i]], method="rf", type="sizemod", las = 2, 
+          main = "rf", col = rgb(0,1,1,0.2))
+  
+  ##plsr
+  #varaible selected
+  barplot(choiceModels[[i]], method="plsr", type="varsel", las = 2, 
+          main = "plsr", col = rgb(1,1,0,0.2))
+  
+  #total use of each variable in all the simulation
+  barplot(choiceModels[[i]], method="plsr", type="sizemod", las = 2, 
+          main = "plsr", col = rgb(0,1,1,0.2))
+  
+  ##ridge
+  #varaible selected
+  barplot(choiceModels[[i]], method="ridge", type="varsel", las = 2, 
+          main = "ridge", col = rgb(1,1,0,0.2))
+  
+  #total use of each variable in all the simulation
+  barplot(choiceModels[[i]], method="ridge", type="sizemod", las = 2, 
+          main = "ridge", col = rgb(0,1,1,0.2))
+  
+    #Selection of the variable with the importance
+  Y <- data[, i]
+  X <- data[,which(colnames(data) %in% rownames(choiceModels[[i]]$pvarsel))]
+  methode <- c('linreg', 'sir', 'rf', 'plsr', 'ridge')[sel_model]
+  print(paste('choix methode:', methode, sep = ' '))
+  
+  #etude de l'importance des variables
+  imp <- varimportance(X = X, Y = Y, method = methode, nperm = 100)
+  meanvi <- colMeans(imp$mat_imp) # mean importance
+  knitr::kable(t(meanvi),digits=2)
+  knitr::kable(imp$base_imp, digit=2) # baseline value of importance
+  
+  plot(imp,choice="boxplot", col="lightgreen")
+  plot(imp,choice="meanplot", cutoff = TRUE)
+  
+  
+  sel <- which(colnames(data) %in% select(imp, cutoff=TRUE)$var)
+  Xnew <- data[, sel]
+
+  
+  #model final -----
+  if (methode == 'linreg'){
+    
+    models[[i]] <- reg_lm(X = Xnew, Y = Y, Ylabel = Ylabel)
+
+    print(summary(models[[i]]))
+    
+    #prediction of the input data
+    y_pred <- predict(models[[i]], Xnew)
+    
+  }
+  
+  if (methode == 'sir'){
+    
+    models[[i]] <- sir(X = Xnew, Y = Y, Ylabel = Ylabel)
+    
+    #visualize ebouli plot
+    plot(models[[i]], choice = 'eigenValue')
+   
+    #visualize the performance of the non-parametric estimation
+    plot(models[[i]], choice = 'smoothing')
+    
+    # Prediction of the input data
+    y_pred <- predict(models[[i]], Xnew)
+    
+  
+  }
+  
+  if (methode == 'rf'){
+    
+    models[[i]] <- rf(X = Xnew, Y = Y, Ylabel = Ylabel)
+    
+    #prediction of the input data
+    y_pred <- predict(models[[i]], Xnew)
+    
+ 
+  }
+  
+  if (methode == 'ridge'){
+    
+    models[[i]] <- ridge(X = Xnew, Y = Y, Ylabel = Ylabel)
+
+    print(summary(models[[i]]))
+    
+    #prediction of the input data
+    y_pred <- predict(models[[i]], Xnew)
+    
+  }
+}
+
+```
+
+```{r addundermodel, warning = FALSE}
+
+#add under models
+for (i in 1:length(models)){
+  if (class(models[[i]]) == 'reg_lm')  models[[i]]$all_models <- underModels.reg_lm(models[[i]], B = 100)
+  
+  if (class(models[[i]]) == 'rf')  models[[i]]$all_models <- underModels.rf(models[[i]], B = 100)
+  
+  if (class(models[[i]]) == 'sir')  models[[i]]$all_models <- underModels.sir(models[[i]], B = 100)
+  
+  if (class(models[[i]]) == 'ridge')  models[[i]]$all_models <- underModels.ridge(models[[i]], B = 100)
+  
+  if (class(models[[i]]) == 'pls_reg')  models[[i]]$all_models <- underModels.pls_reg(models[[i]], B = 100)
+}
+
+
+# save(models, file = '../data/models.RData')
+```
+
+Chargeons maintenant les modèles finaux
+
+```{r message = FALSE, warning = FALSE}
+load('../data/models_final_scale.RData')
+
+#import data
+data <- as.matrix(read.csv('../data/indicateurs.csv', header = T, sep = ';', dec = ','))
+```
+
+
+```{r qltmodels, warning = FALSE}
+res <- as.data.frame(matrix(NA, ncol = 7, nrow = ncol(data)))
+rownames(res) <- colnames(data)
+colnames(res) <- c('R2', 'R2_cor', 'RMSE', 'RMSE_cor', 'R2Adj', 'R2Adj_cor', 'model')
+
+for (i in 1:ncol(data)){
+  qlt <- qlt_model(model = models[[i]])
+  plot(qlt)
+  for (j in 1:length(qlt$qlt)){
+    res[i, j] <- qlt$qlt[[j]]
+  }
+  
+  res[i, 7] <- class(models[[i]])
+}
+
+
+# write.csv2(res, file='../plot/qtl_models_final_scale.csv', sep="\t")
+```
+
+
+```{r sensitivity}
+p <- ncol(data)
+sensibilite <- as.data.frame(matrix(NA, ncol = p, nrow = p))
+rownames(sensibilite) <- colnames(data)
+colnames(sensibilite) <- colnames(data)
+set.seed(123)
+
+for (m in 1:p){
+  col <- which(colnames(data) %in% models[[m]]$Xlabels)
+  j <- 1
+  ss <- sobol_sensitivity(model = models[[m]], order = 1, n = 10000, nboot = 300, seed = 123)
+
+  for (i in col){
+    sensibilite[m, i] <- round(ss$original[ j], 3)
+    j <- j + 1
+  }  
+    
+}
+  
+sensibilite
+
+#check sum of the sensibilite by model
+apply(as.matrix(sensibilite), MARGIN = 1, FUN = sum, na.rm = TRUE)
+
+# write.csv2(sensibilite, file='../plot/sensibilite_models_final_scale.csv', sep="\t")
+```
+
+
+Très long computationnellement, plusieurs jours selon la puissance de la machine
+
+```{r }
+# list_index <- list(EI = 1:3,
+#                    QC = 4:10,
+#                    QN = 11:17,
+#                    QS = 18:24)
+# 
+# n <- 5000
+# 
+# 
+# sd_index <- apply(X = data[,list_index[[1]]], MARGIN = 2, FUN = sd)
+# res <- simulation(data = data, n = n/4, models = models, index = list_index[[1]], 
+#                   borne = 2*sd_index , list_index = list_index, seed = 123)
+# res$initiation <- names(list_index)[1]
+# 
+# i <- 2
+# for (index in list_index[-1]){
+#   
+#   sd_index <- apply(X = data[, index], MARGIN = 2, FUN = sd)
+#   res_interm <- simulation(data = data, n = n/4, models = models, index = index, 
+#                   borne = 2*sd_index , list_index = list_index, seed = 123)
+#   res_interm$initiation <- names(list_index)[i]
+#   res <- rbind(res, res_interm)
+#   i <- i + 1
+#   
+# }
+# 
+# dim(res)
+# res
+```
+
+
+```{r message = FALSE, warning = FALSE}
+# write.csv2(res, file='../data/big_simulation4.csv', sep="\t")
+```
+
+
+```{r}
+library(OptFilBov)
+
+#import data
+data <- as.matrix(read.csv('../data/big_simulation500.csv', header = T, sep = ';', dec = ',')[,-26])
+initiation <- as.factor(as.vector(read.csv('../data/big_simulation500.csv', header = T, sep = ';', dec = ',')[,26]))
+CDC <- read.csv('../data/cahier_des_charges3.csv', header = T, sep = ';', dec = ',')
+CDC$objectif <- as.factor(CDC$objectif) 
+CDC
+
+objectifs <- list()
+for (k in levels(CDC$objectif)){
+
+  objectifs[[k]]$index <- which(CDC$objectif == k)
+  objectifs[[k]]$w <- CDC$coef_agreg[which(CDC$objectif == k)]
+  names(objectifs)[as.numeric(k)] <- paste(unlist(strsplit(as.character(CDC$cluster[which(CDC$objectif == k)][1]), split = ''))[-3], collapse = '')
+  
+}
+
+
+constraint <- list(seuil_plus = CDC$seuil[which(! is.na(CDC$seuil) & CDC$seuil > 0)],
+                   seuil_minus = CDC$seuil[which(! is.na(CDC$seuil) & CDC$seuil < 0)],
+                   index_plus = which(! is.na(CDC$seuil) & CDC$seuil > 0),
+                   index_minus = which(! is.na(CDC$seuil) & CDC$seuil < 0))
+
+
+
+res <- bovCDC(X = data[,-1],
+              objectifs = objectifs,
+              constraint = constraint,
+              scale = TRUE)
+
+delete_by_threshold <- which(!res$constraint_respected)
+if (length(delete_by_threshold)>0) res <- res[-delete_by_threshold, 1:2] else res<-res[,1:2]
+```
+
+A cette étape on vient de supprimer `r length(delete_by_threshold)` individus qui ne respectait pas les conditions. A remarquer que c'est faible mais aussi que le seuil est en faite un plafond (donc l'inverse de ce que l'on recherche) pour les indicateurs qui sont optimiser lorsqu'il sont faibles.
+```{r}
+
+plot(res, xlim=c(-2,2)) 
+lines(ksmooth(x = res[,1], y = res[,2]), col = 'red')
+cor(res)
+cor.test(res[,1], res[,2])
+
+# dev.off()
+
+X_scale <- scale(data)
+X_decision <- pareto_finding (X = X_scale, Y = res, method = 'target', target = c(1.5,1.5), n = 2, plot = TRUE)
+
+
+bon <- X_decision$Y_index
+```
+
+Par rapport aux derniers resultats, on remarque que QS et QN sont lègerement negativement correles. Bon signe pour notre étude même si c'est pas flagrant et que les points du milieu sont un peu bizarres (cf l'explication plus bas) 
+```{r}
+color <- c(rgb(15,255,45,maxColorValue=255), rgb(137,167,16,maxColorValue=255))
+cow <- as.matrix(as.data.frame(X_decision$X)[-1])
+class(cow) <- 'cow'
+colnames(cow)[4] <- 'C*'
+colnames(cow)[10] <- 'L*'
+colnames(cow)[13] <- 'AGPI/AGMI'
+colnames(cow)[16] <- 'n6/n3'
+colnames(cow)[11] <- 'C16:0/C18:0'
+colnames(cow)[12] <- 'lipides'
+colnames(cow)[24] <- 'intensite_flav'
+
+plot(cow, choice = 'radar_diag',  radial.lim = c(-4,4), color=color, cex=1, legend_label = c("Bon1", "Bon2"),
+     lty=c(1,2), x_legend=6.5, y_legend=10, bg_par=rgb(240,254,255, maxColorValue=255), seg.len=3)
+# dev.copy(svg,'../plot/bon_profil.svg')
+# dev.off()
+# dev.copy(png,'../plot/bon_profil3R.png')
+# dev.off()
+
+X_decision <- pareto_finding (X = X_scale, Y = res, method = 'target', target = c(-1.5,-1.5), n = 2, plot = TRUE)
+mauvais <- X_decision$Y_index
+
+
+color <- c(rgb(255,21,15,maxColorValue=255), rgb(248,179,16,maxColorValue=255))
+cow <- as.matrix(as.data.frame(X_decision$X)[-1])
+class(cow) <- 'cow'
+colnames(cow)[4] <- 'C*'
+colnames(cow)[10] <- 'L*'
+colnames(cow)[13] <- 'AGPI/AGMI'
+colnames(cow)[16] <- 'n6/n3'
+colnames(cow)[11] <- 'C16:0/C18:0'
+colnames(cow)[12] <- 'lipides'
+colnames(cow)[24] <- 'intensite_flav'
+
+plot(cow, choice = 'radar_diag',  radial.lim = c(-4,4), color=color, cex=1, legend_label = c("Mauvais2", "Mauvais1"),lty=c(1,2),
+     x_legend=5, y_legend=10, bg_par=rgb(240,254,255, maxColorValue=255), seg.len=3)
+# dev.copy(svg,'../plot/mauvais_profil.svg')
+# dev.off()
+# dev.copy(png,'../plot/mauvais_profil3R.png')
+# dev.off()
+
+
+a <- rep(1, nrow(res))
+a[bon] <- 2
+a[mauvais] <- 3
+a <- as.factor(a)
+
+pch <- rep(1, nrow(res))
+pch[c(bon[1], mauvais[2])] <- 2
+pch[c(bon[2], mauvais[1])] <- 3
+
+par(mai=c(1,0.8,1,0.1))
+par(bg=rgb(240,254,255, maxColorValue=255))
+plot(res, col = c('grey', 'blue', 'red')[a], pch=pch, xlim=c(-2,2), cex.axis=1.5, cex.lab=1.5)
+legend(x=-2.1, y=1.55, legend = c('bon1', 'bon2', 'mauvais1', 'mauvais2'), pch = (2:3)[c(1,2,1,2)], col = c('blue', 'red')[c(1,1,2,2)], cex=1, y.intersp = 0.7)
+abline(lm(res[,2]~res[,1]))
+text(x=1.4, y=1.4,labels = 'r=-0,17', cex=1.5)
+# dev.copy(png, '../plot/compromis.png')
+# dev.off()
+```
+
+Ici on retrouve le profil de nos meilleurs compromis.

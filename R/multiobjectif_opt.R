@@ -44,7 +44,7 @@ weight_aggregation <- function(X, w, n = 5){
 
 MinMax <- function(X, target, n){
 
-  res <- rowSums(t(t(X) - target)^2)
+  res <- rowSums(t(t(X) - target)^2) #a revoir
 
   list(value = X[which(res %in% sort(res, decreasing = F)[1:n]),],
        index = which(res %in% sort(res, decreasing = F)[1:n]))
